@@ -15,6 +15,25 @@ const DELIVERY_DISTANCES = [
 
 const LOCATION_WHATSAPP = '50687114772'; // Número al que se envía la ubicación para domicilio
 
+// ── Horario de entrega ───────────────────────────────────────────────────────
+// Refleja la sección "Horarios de Entrega": cada día solo se reparte UNA cosa
+// (frutas o batidos, nunca ambas) y solo en una zona.
+type Category = 'ensaladas' | 'batidos';
+
+const SCHEDULE: { day: string; category: Category; zone: 'nicoya' | 'santacruz'; time: string; color: 'orange' | 'pink' | 'yellow' | 'purple' }[] = [
+  { day: 'Lunes',     category: 'ensaladas', zone: 'nicoya',    time: '8:30 am – 11:00 am',  color: 'orange' },
+  { day: 'Martes',    category: 'batidos',   zone: 'nicoya',    time: '11:00 am – 12:00 pm', color: 'pink' },
+  { day: 'Miércoles', category: 'ensaladas', zone: 'nicoya',    time: '8:30 am – 11:00 am',  color: 'yellow' },
+  { day: 'Jueves',    category: 'ensaladas', zone: 'santacruz', time: '8:30 am – 11:00 am',  color: 'purple' },
+];
+
+const DAY_COLOR_CLASSES: Record<string, { border: string; bg: string; text: string }> = {
+  orange: { border: 'border-orange-400', bg: 'bg-orange-50', text: 'text-orange-600' },
+  pink:   { border: 'border-pink-400',   bg: 'bg-pink-50',   text: 'text-pink-600' },
+  yellow: { border: 'border-yellow-400', bg: 'bg-yellow-50', text: 'text-yellow-700' },
+  purple: { border: 'border-purple-400', bg: 'bg-purple-50', text: 'text-purple-600' },
+};
+
 const BATIDOS_AGUA: { id: string; label: string; price: number }[] = [
   { id: 'batido-sandia-agua',        label: 'Sandía',          price: 1500 },
   { id: 'batido-pina-agua',          label: 'Piña',            price: 1500 },
@@ -50,19 +69,33 @@ export function OrderForm() {
 
   const [customerName, setCustomerName] = useState('');
   const [zone, setZone] = useState<'nicoya' | 'santacruz' | ''>('');
+  const [category, setCategory] = useState<Category | ''>('');
+  const [deliveryDay, setDeliveryDay] = useState('');
   const [wantsDelivery, setWantsDelivery] = useState(false);
   const [deliveryDistance, setDeliveryDistance] = useState<'cerca' | 'lejos'>('cerca');
 
   function selectZone(z: 'nicoya' | 'santacruz') {
     setZone(z);
     if (z === 'santacruz') setWantsDelivery(false);
+    setCategory('');
+    setDeliveryDay('');
+    setCart([]);
   }
+
+  function selectCategory(c: Category) {
+    setCategory(c);
+    setCart([]); // no se puede mezclar ensaladas y batidos en un mismo pedido
+    const days = SCHEDULE.filter(s => s.zone === zone && s.category === c);
+    setDeliveryDay(days.length === 1 ? days[0].day : '');
+  }
+
+  const availableDays = zone && category ? SCHEDULE.filter(s => s.zone === zone && s.category === category) : [];
 
   const isDelivery   = zone === 'nicoya' && wantsDelivery;
   const deliveryFee  = isDelivery ? DELIVERY_DISTANCES.find(d => d.id === deliveryDistance)!.price : 0;
   const productsTotal = cart.reduce((s, i) => s + i.unitPrice * i.qty, 0);
   const total    = productsTotal + deliveryFee;
-  const canOrder = cart.length > 0 && customerName.trim() !== '' && zone !== '';
+  const canOrder = cart.length > 0 && customerName.trim() !== '' && zone !== '' && category !== '' && deliveryDay !== '';
 
   // Agrega 1 unidad (o crea el ítem si no existe)
   function add(item: Omit<CartItem, 'qty'>) {
@@ -86,6 +119,7 @@ export function OrderForm() {
     const lines = ['¡Hola! Quiero hacer un pedido 🛒\n'];
     lines.push(`👤 Nombre: ${customerName.trim()}`);
     lines.push(`📍 Zona: ${zone === 'nicoya' ? 'Nicoya' : 'Santa Cruz'}`);
+    lines.push(`📅 Día de entrega: ${deliveryDay}`);
     if (isDelivery) {
       lines.push(`🛵 Entrega: A DOMICILIO (+${fmt(deliveryFee)})`);
       lines.push(`📌 Ya envié mi ubicación por WhatsApp al 8711-4772`);
@@ -108,6 +142,7 @@ export function OrderForm() {
     const lines = ['¡Hola! Necesito entrega a domicilio 🛵📍\n'];
     lines.push(`👤 Nombre: ${customerName.trim() || '(sin nombre)'}`);
     lines.push(`📍 Zona: Nicoya`);
+    lines.push(`📅 Día de entrega: ${deliveryDay}`);
     lines.push('');
     lines.push('Pedido:');
     cart.forEach(i => {
@@ -177,65 +212,143 @@ export function OrderForm() {
               📍 En Santa Cruz el servicio a domicilio no está disponible por ahora — la entrega es en el punto céntrico.
             </p>
           )}
+
+          {/* ¿Qué se te antoja? — define el menú y el día de entrega disponible */}
+          {zone !== '' && (
+            <div>
+              <label className="text-xs text-gray-500 font-medium mb-2 block">¿Qué se te antoja?</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => selectCategory('ensaladas')}
+                  className={`py-3 rounded-xl border-2 font-medium text-sm transition-colors touch-manipulation ${
+                    category === 'ensaladas' ? 'border-orange-400 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500'
+                  }`}
+                >
+                  🥗 Ensalada de Frutas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectCategory('batidos')}
+                  className={`py-3 rounded-xl border-2 font-medium text-sm transition-colors touch-manipulation ${
+                    category === 'batidos' ? 'border-orange-400 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500'
+                  }`}
+                >
+                  🥤 Batidos
+                </button>
+              </div>
+
+              {category !== '' && availableDays.length === 0 && (
+                <div className="mt-3 bg-red-50 border-2 border-red-100 rounded-xl p-3 text-xs sm:text-sm text-red-500 text-center leading-relaxed">
+                  😔 {category === 'batidos' ? 'Los Batidos' : 'Las Ensaladas de Frutas'} no se entregan en {zone === 'nicoya' ? 'Nicoya' : 'Santa Cruz'} por ahora.
+                  Probá con {category === 'batidos' ? 'Ensalada de Frutas' : 'Batidos'} o cambiá de zona.
+                </div>
+              )}
+
+              {category !== '' && availableDays.length === 1 && (
+                <div className={`mt-3 rounded-xl p-3 border-2 text-center text-xs sm:text-sm ${DAY_COLOR_CLASSES[availableDays[0].color].border} ${DAY_COLOR_CLASSES[availableDays[0].color].bg} ${DAY_COLOR_CLASSES[availableDays[0].color].text}`}>
+                  📅 Este pedido se entrega el <b>{availableDays[0].day}</b> ({availableDays[0].time})
+                </div>
+              )}
+
+              {category !== '' && availableDays.length > 1 && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-500 font-medium mb-2">Elegí el día de entrega</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {availableDays.map(d => {
+                      const c = DAY_COLOR_CLASSES[d.color];
+                      const active = deliveryDay === d.day;
+                      return (
+                        <button
+                          key={d.day}
+                          type="button"
+                          onClick={() => setDeliveryDay(d.day)}
+                          className={`py-3 rounded-xl border-2 text-xs sm:text-sm font-medium transition-colors touch-manipulation ${
+                            active ? `${c.border} ${c.bg} ${c.text}` : 'border-gray-200 text-gray-500'
+                          }`}
+                        >
+                          {d.day}<br /><span className="text-[10px] text-gray-400">{d.time}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ── MENÚ ENSALADAS ── */}
-      <MenuSection title="🥗 Ensaladas de Frutas">
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          {ENSALADAS.map(e => (
-            <MenuCard
-              key={e.id}
-              emoji={e.emoji}
-              label={e.label}
-              price={fmt(e.price)}
-              inCart={cart.find(c => c.id === e.id)?.qty ?? 0}
-              onAdd={() => add({ id: e.id, emoji: e.emoji, label: e.label, sublabel: e.label.replace('Ensalada ', ''), unitPrice: e.price })}
-            />
-          ))}
+      {/* Aviso mientras no se elige categoría */}
+      {(zone === '' || category === '') && (
+        <div className="mb-8 text-center text-gray-400 text-sm bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl py-6 px-4">
+          👆 Completá tu zona y elegí si querés Ensalada de Frutas o Batidos para ver el menú disponible.
         </div>
-      </MenuSection>
+      )}
+
+      {/* ── MENÚ ENSALADAS ── */}
+      {category === 'ensaladas' && availableDays.length > 0 && (
+        <MenuSection title="🥗 Ensaladas de Frutas">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            {ENSALADAS.map(e => (
+              <MenuCard
+                key={e.id}
+                emoji={e.emoji}
+                label={e.label}
+                price={fmt(e.price)}
+                inCart={cart.find(c => c.id === e.id)?.qty ?? 0}
+                onAdd={() => add({ id: e.id, emoji: e.emoji, label: e.label, sublabel: e.label.replace('Ensalada ', ''), unitPrice: e.price })}
+              />
+            ))}
+          </div>
+        </MenuSection>
+      )}
 
       {/* ── MENÚ BATIDOS ── */}
-      <MenuSection title="🥤 Batidos">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-          {/* En Agua */}
-          <div className="bg-blue-50 rounded-2xl p-4 sm:p-5 border-2 border-blue-100">
-            <p className="text-blue-600 font-semibold mb-3 sm:mb-4 text-center">💧 En Agua — ₡1,500</p>
-            <div className="flex flex-col gap-2">
-              {BATIDOS_AGUA.map(b => (
-                <FlavorRow
-                  key={b.id}
-                  label={b.label}
-                  color="blue"
-                  inCart={cart.find(c => c.id === b.id)?.qty ?? 0}
-                  onAdd={() => add({ id: b.id, emoji: '🥤', label: b.label, sublabel: 'En Agua', unitPrice: b.price })}
-                />
-              ))}
+      {category === 'batidos' && availableDays.length > 0 && (
+        <MenuSection title="🥤 Batidos">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+            {/* En Agua */}
+            <div className="bg-blue-50 rounded-2xl p-4 sm:p-5 border-2 border-blue-100">
+              <p className="text-blue-600 font-semibold mb-3 sm:mb-4 text-center">💧 En Agua — ₡1,500</p>
+              <div className="flex flex-col gap-2">
+                {BATIDOS_AGUA.map(b => (
+                  <FlavorRow
+                    key={b.id}
+                    label={b.label}
+                    color="blue"
+                    inCart={cart.find(c => c.id === b.id)?.qty ?? 0}
+                    onAdd={() => add({ id: b.id, emoji: '🥤', label: b.label, sublabel: 'En Agua', unitPrice: b.price })}
+                  />
+                ))}
+              </div>
+            </div>
+            {/* En Leche */}
+            <div className="bg-amber-50 rounded-2xl p-4 sm:p-5 border-2 border-amber-100">
+              <p className="text-amber-700 font-semibold mb-3 sm:mb-4 text-center">🥛 En Leche — ₡1,800</p>
+              <div className="flex flex-col gap-2">
+                {BATIDOS_LECHE.map(b => (
+                  <FlavorRow
+                    key={b.id}
+                    label={b.label}
+                    color="amber"
+                    inCart={cart.find(c => c.id === b.id)?.qty ?? 0}
+                    onAdd={() => add({ id: b.id, emoji: '🥤', label: b.label, sublabel: 'En Leche', unitPrice: b.price })}
+                  />
+                ))}
+              </div>
             </div>
           </div>
-          {/* En Leche */}
-          <div className="bg-amber-50 rounded-2xl p-4 sm:p-5 border-2 border-amber-100">
-            <p className="text-amber-700 font-semibold mb-3 sm:mb-4 text-center">🥛 En Leche — ₡1,800</p>
-            <div className="flex flex-col gap-2">
-              {BATIDOS_LECHE.map(b => (
-                <FlavorRow
-                  key={b.id}
-                  label={b.label}
-                  color="amber"
-                  inCart={cart.find(c => c.id === b.id)?.qty ?? 0}
-                  onAdd={() => add({ id: b.id, emoji: '🥤', label: b.label, sublabel: 'En Leche', unitPrice: b.price })}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </MenuSection>
+        </MenuSection>
+      )}
 
       {/* ── CARRITO ── */}
       {cart.length > 0 && (
         <div className="mb-6 sm:mb-8">
-          <p className="text-gray-500 text-sm font-medium uppercase tracking-wide mb-3 text-center">Tu pedido</p>
+          <p className="text-gray-500 text-sm font-medium uppercase tracking-wide mb-1 text-center">Tu pedido</p>
+          {deliveryDay && (
+            <p className="text-xs text-gray-400 text-center mb-3">📅 Se entrega el {deliveryDay}</p>
+          )}
           <div className="border-2 border-orange-100 rounded-2xl overflow-hidden">
             {cart.map((item, idx) => (
               <div
@@ -340,16 +453,8 @@ export function OrderForm() {
                         </button>
                       ))}
                     </div>
-                    <a
-                      href={buildLocationLink()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 bg-orange-500 active:bg-orange-600 text-white px-4 py-2.5 rounded-full text-xs sm:text-sm font-medium transition-colors touch-manipulation w-full"
-                    >
-                      <Navigation className="w-3.5 h-3.5" /> Enviar pedido y ubicación por WhatsApp
-                    </a>
-                    <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-                      Se abrirá WhatsApp con el número 8711-4772 y el detalle de tu pedido ya escrito. Ahí adjunta tu ubicación (📎 → Ubicación) para que el repartidor sepa qué llevar y a dónde.
+                    <p className="text-xs text-gray-400 leading-relaxed">
+                      📍 Al final del formulario vas a encontrar 2 botones: uno para enviar tu pedido y otro para enviar tu ubicación al repartidor (8711-4772). Debes tocar los dos para completar tu entrega a domicilio.
                     </p>
                   </div>
                 )}
@@ -371,28 +476,55 @@ export function OrderForm() {
         />
       </div>
 
-      {/* ── BOTÓN ── */}
+      {/* ── BOTÓN(ES) ── */}
       <div className="text-center">
-        <a
-          href={canOrder ? buildLink() : undefined}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => { if (!canOrder) e.preventDefault(); }}
-          className={`w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full text-white font-medium text-base sm:text-lg transition-all shadow-lg touch-manipulation ${
-            canOrder
-              ? 'bg-green-500 active:bg-green-600 hover:bg-green-600 hover:scale-105 cursor-pointer'
-              : 'bg-gray-300 cursor-not-allowed'
-          }`}
-        >
-          <Phone className="w-5 h-5 flex-shrink-0" />
-          Enviar pedido por WhatsApp
-        </a>
+        {isDelivery && canOrder && (
+          <div className="max-w-md mx-auto mb-4 bg-amber-50 border-2 border-amber-200 rounded-xl p-3 text-xs sm:text-sm text-amber-700 leading-relaxed text-left">
+            📌 Como es <b>a domicilio</b>, tenés que tocar los <b>2 botones</b> de abajo, uno por uno, y darle "Enviar" en cada chat de WhatsApp que se abra. El primero es tu pedido, el segundo es tu ubicación para el repartidor.
+          </div>
+        )}
+
+        <div className="flex flex-col items-center gap-3">
+          <a
+            href={canOrder ? buildLink() : undefined}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => { if (!canOrder) e.preventDefault(); }}
+            className={`w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full text-white font-medium text-base sm:text-lg transition-all shadow-lg touch-manipulation ${
+              canOrder
+                ? 'bg-green-500 active:bg-green-600 hover:bg-green-600 hover:scale-105 cursor-pointer'
+                : 'bg-gray-300 cursor-not-allowed'
+            }`}
+          >
+            <Phone className="w-5 h-5 flex-shrink-0" />
+            {isDelivery ? '1️⃣ Enviar pedido por WhatsApp' : 'Enviar pedido por WhatsApp'}
+          </a>
+
+          {isDelivery && canOrder && (
+            <a
+              href={buildLocationLink()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-full text-white font-medium text-base sm:text-lg transition-all shadow-lg touch-manipulation bg-orange-500 active:bg-orange-600 hover:bg-orange-600 hover:scale-105 cursor-pointer"
+            >
+              <Navigation className="w-5 h-5 flex-shrink-0" />
+              2️⃣ Enviar ubicación al repartidor
+            </a>
+          )}
+        </div>
+
         {!canOrder && (
           <p className="text-sm text-gray-400 mt-3">
             {customerName.trim() === ''
               ? 'Ingresa tu nombre para continuar'
               : zone === ''
               ? 'Selecciona tu zona de entrega para continuar'
+              : category === ''
+              ? 'Elegí si querés Ensalada de Frutas o Batidos'
+              : availableDays.length === 0
+              ? 'Ese producto no se entrega en tu zona por ahora'
+              : deliveryDay === ''
+              ? 'Selecciona el día de entrega'
               : 'Agrega al menos un producto para continuar'}
           </p>
         )}
