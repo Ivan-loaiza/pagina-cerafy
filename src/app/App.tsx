@@ -42,7 +42,7 @@ export default function App() {
             Nuestros Productos Frescos
           </h2>
           <p className="text-gray-600 text-sm sm:text-base max-w-2xl mx-auto px-2">
-            Descubre nuestra deliciosa selección de ensaladas de frutas y batidos tropicales,
+            Descubre nuestra deliciosa selección de ensaladas de frutas y batidos Naturales,
             preparados con ingredientes frescos y naturales
           </p>
         </div>
@@ -128,7 +128,7 @@ export default function App() {
                 <span className="text-white text-[10px] font-semibold uppercase tracking-wider leading-none">Lun</span>
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-gray-800 text-sm sm:text-base leading-tight">Frutas frescos</p>
+                <p className="font-semibold text-gray-800 text-sm sm:text-base leading-tight">Frutas frescas</p>
                 <p className="text-xs sm:text-sm text-orange-500 font-medium mt-0.5">📍 Nicoya</p>
                 <p className="text-xs text-gray-400 mt-0.5">8:30 am – 11:00 am</p>
               </div>
@@ -141,7 +141,7 @@ export default function App() {
                 <span className="text-white text-[10px] font-semibold uppercase tracking-wider leading-none">Mar</span>
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-gray-800 text-sm sm:text-base leading-tight">Batidos tropicales</p>
+                <p className="font-semibold text-gray-800 text-sm sm:text-base leading-tight">Batidos Naturales</p>
                 <p className="text-xs sm:text-sm text-pink-500 font-medium mt-0.5">📍 Nicoya</p>
                 <p className="text-xs text-gray-400 mt-0.5">11:00 am – 12:00 pm</p>
               </div>
@@ -154,7 +154,7 @@ export default function App() {
                 <span className="text-white text-[10px] font-semibold uppercase tracking-wider leading-none">Mié</span>
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-gray-800 text-sm sm:text-base leading-tight">Frutas frescos</p>
+                <p className="font-semibold text-gray-800 text-sm sm:text-base leading-tight">Frutas frescas</p>
                 <p className="text-xs sm:text-sm text-orange-400 font-medium mt-0.5">📍 Nicoya</p>
                 <p className="text-xs text-gray-400 mt-0.5">8:30 am – 11:00 am</p>
               </div>
@@ -167,7 +167,7 @@ export default function App() {
                 <span className="text-white text-[10px] font-semibold uppercase tracking-wider leading-none">Jue</span>
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-gray-800 text-sm sm:text-base leading-tight">Frutas frescos</p>
+                <p className="font-semibold text-gray-800 text-sm sm:text-base leading-tight">Frutas frescas</p>
                 <p className="text-xs sm:text-sm text-purple-500 font-medium mt-0.5">📍 Santa Cruz</p>
                 <p className="text-xs text-gray-400 mt-0.5">8:30 am – 11:00 am</p>
               </div>
