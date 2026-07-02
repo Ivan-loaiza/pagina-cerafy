@@ -1,11 +1,19 @@
 import { useState } from 'react';
-import { Phone, ShoppingCart, Plus, Minus, Trash2 } from 'lucide-react';
+import { Phone, ShoppingCart, Plus, Minus, Trash2, User, MapPin, Navigation } from 'lucide-react';
 
 // ── Catálogo ────────────────────────────────────────────────────────────────
 const ENSALADAS = [
   { id: 'ensalada-pequena', label: 'Ensalada Pequeña', emoji: '🥗', price: 1000 },
   { id: 'ensalada-grande',  label: 'Ensalada Grande',  emoji: '🥗', price: 2000 },
 ];
+
+// Solo aplica a la zona de Nicoya — en Santa Cruz no se ofrece domicilio
+const DELIVERY_DISTANCES = [
+  { id: 'cerca', label: 'Cerca del centro', price: 500 },
+  { id: 'lejos', label: 'Más Lejano',     price: 1000 },
+] as const;
+
+const LOCATION_WHATSAPP = '50687114772'; // Número al que se envía la ubicación para domicilio
 
 const BATIDOS_AGUA: { id: string; label: string; price: number }[] = [
   { id: 'batido-sandia-agua',        label: 'Sandía',          price: 1500 },
@@ -40,8 +48,21 @@ export function OrderForm() {
   const [cart,  setCart]  = useState<CartItem[]>([]);
   const [notes, setNotes] = useState('');
 
-  const total    = cart.reduce((s, i) => s + i.unitPrice * i.qty, 0);
-  const canOrder = cart.length > 0;
+  const [customerName, setCustomerName] = useState('');
+  const [zone, setZone] = useState<'nicoya' | 'santacruz' | ''>('');
+  const [wantsDelivery, setWantsDelivery] = useState(false);
+  const [deliveryDistance, setDeliveryDistance] = useState<'cerca' | 'lejos'>('cerca');
+
+  function selectZone(z: 'nicoya' | 'santacruz') {
+    setZone(z);
+    if (z === 'santacruz') setWantsDelivery(false);
+  }
+
+  const isDelivery   = zone === 'nicoya' && wantsDelivery;
+  const deliveryFee  = isDelivery ? DELIVERY_DISTANCES.find(d => d.id === deliveryDistance)!.price : 0;
+  const productsTotal = cart.reduce((s, i) => s + i.unitPrice * i.qty, 0);
+  const total    = productsTotal + deliveryFee;
+  const canOrder = cart.length > 0 && customerName.trim() !== '' && zone !== '';
 
   // Agrega 1 unidad (o crea el ítem si no existe)
   function add(item: Omit<CartItem, 'qty'>) {
@@ -63,12 +84,39 @@ export function OrderForm() {
 
   function buildLink() {
     const lines = ['¡Hola! Quiero hacer un pedido 🛒\n'];
+    lines.push(`👤 Nombre: ${customerName.trim()}`);
+    lines.push(`📍 Zona: ${zone === 'nicoya' ? 'Nicoya' : 'Santa Cruz'}`);
+    if (isDelivery) {
+      lines.push(`🛵 Entrega: A DOMICILIO (+${fmt(deliveryFee)})`);
+      lines.push(`📌 Ya envié mi ubicación por WhatsApp al 8711-4772`);
+    } else if (zone === 'nicoya') {
+      lines.push(`🏬 Entrega: Retiro / entrega en el centro`);
+    } else {
+      lines.push(`🏬 Entrega: Punto céntrico de Santa Cruz`);
+    }
+    lines.push('');
     cart.forEach(i => {
       lines.push(`${i.emoji} ${i.label} (${i.sublabel}) x${i.qty} — ${fmt(i.unitPrice * i.qty)}`);
     });
+    if (isDelivery) lines.push(`🛵 Domicilio — ${fmt(deliveryFee)}`);
     lines.push(`\n💰 Total: ${fmt(total)}`);
     if (notes.trim()) lines.push(`📝 Notas: ${notes.trim()}`);
     return `https://wa.me/50686664793?text=${encodeURIComponent(lines.join('\n'))}`;
+  }
+
+  function buildLocationLink() {
+    const lines = ['¡Hola! Necesito entrega a domicilio 🛵📍\n'];
+    lines.push(`👤 Nombre: ${customerName.trim() || '(sin nombre)'}`);
+    lines.push(`📍 Zona: Nicoya`);
+    lines.push('');
+    lines.push('Pedido:');
+    cart.forEach(i => {
+      lines.push(`${i.emoji} ${i.label} (${i.sublabel}) x${i.qty}`);
+    });
+    lines.push(`\n💰 Total (incluye domicilio): ${fmt(total)}`);
+    if (notes.trim()) lines.push(`📝 Notas: ${notes.trim()}`);
+    lines.push('\nTe comparto mi ubicación a continuación 👇');
+    return `https://wa.me/${LOCATION_WHATSAPP}?text=${encodeURIComponent(lines.join('\n'))}`;
   }
 
   return (
@@ -78,6 +126,58 @@ export function OrderForm() {
       <div className="flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-10">
         <ShoppingCart className="w-6 h-6 sm:w-7 sm:h-7 text-orange-500" />
         <h3 className="text-xl sm:text-2xl lg:text-3xl text-gray-800">Personaliza tu Pedido</h3>
+      </div>
+
+      {/* ── DATOS DEL CLIENTE ── */}
+      <div className="mb-8">
+        <p className="text-gray-500 text-sm font-medium mb-3 text-center uppercase tracking-wide">Tus datos</p>
+        <div className="max-w-md mx-auto flex flex-col gap-4">
+          {/* Nombre */}
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-1 block">Nombre completo</label>
+            <div className="relative">
+              <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Ej: María Rodríguez"
+                className="w-full border-2 border-gray-200 rounded-xl pl-10 pr-4 py-3 text-gray-700 focus:outline-none focus:border-orange-400"
+              />
+            </div>
+          </div>
+
+          {/* Zona */}
+          <div>
+            <label className="text-xs text-gray-500 font-medium mb-2 block">Zona de entrega</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => selectZone('nicoya')}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-medium text-sm transition-colors touch-manipulation ${
+                  zone === 'nicoya' ? 'border-orange-400 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500'
+                }`}
+              >
+                <MapPin className="w-4 h-4" /> Nicoya
+              </button>
+              <button
+                type="button"
+                onClick={() => selectZone('santacruz')}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-medium text-sm transition-colors touch-manipulation ${
+                  zone === 'santacruz' ? 'border-purple-400 bg-purple-50 text-purple-600' : 'border-gray-200 text-gray-500'
+                }`}
+              >
+                <MapPin className="w-4 h-4" /> Santa Cruz
+              </button>
+            </div>
+          </div>
+
+          {zone === 'santacruz' && (
+            <p className="text-xs text-gray-400 text-center leading-relaxed">
+              📍 En Santa Cruz el servicio a domicilio no está disponible por ahora — la entrega es en el punto céntrico.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* ── MENÚ ENSALADAS ── */}
@@ -177,11 +277,85 @@ export function OrderForm() {
               </div>
             ))}
             {/* Total */}
-            <div className="flex justify-between items-center px-4 sm:px-5 py-4 bg-orange-50 border-t-2 border-orange-200">
-              <span className="font-bold text-gray-700">Total</span>
-              <span className="font-bold text-orange-600 text-lg">{fmt(total)}</span>
+            <div className="px-4 sm:px-5 py-4 bg-orange-50 border-t-2 border-orange-200">
+              {isDelivery && (
+                <>
+                  <div className="flex justify-between items-center text-sm text-gray-500 mb-1">
+                    <span>Subtotal</span>
+                    <span>{fmt(productsTotal)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm text-gray-500 mb-2">
+                    <span>🛵 Domicilio</span>
+                    <span>{fmt(deliveryFee)}</span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-gray-700">Total</span>
+                <span className="font-bold text-orange-600 text-lg">{fmt(total)}</span>
+              </div>
             </div>
           </div>
+
+          {/* ── ENTREGA (depende de la zona, ya con el pedido armado) ── */}
+          {zone === 'nicoya' && (
+            <div className="mt-4">
+              <p className="text-gray-500 text-sm font-medium mb-3 text-center uppercase tracking-wide">¿Cómo lo recibís?</p>
+              <div className="max-w-md mx-auto">
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setWantsDelivery(false)}
+                    className={`py-3 rounded-xl border-2 font-medium text-sm transition-colors touch-manipulation ${
+                      !wantsDelivery ? 'border-orange-400 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    🏬 Centro
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWantsDelivery(true)}
+                    className={`py-3 rounded-xl border-2 font-medium text-sm transition-colors touch-manipulation ${
+                      wantsDelivery ? 'border-orange-400 bg-orange-50 text-orange-600' : 'border-gray-200 text-gray-500'
+                    }`}
+                  >
+                    🛵 A domicilio
+                  </button>
+                </div>
+
+                {wantsDelivery && (
+                  <div className="mt-3 bg-orange-50 border-2 border-orange-100 rounded-xl p-4">
+                    <p className="text-xs text-gray-500 font-medium mb-2">¿Qué tan lejos está del centro?</p>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      {DELIVERY_DISTANCES.map(d => (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onClick={() => setDeliveryDistance(d.id)}
+                          className={`py-2.5 rounded-xl border-2 text-xs font-medium transition-colors touch-manipulation ${
+                            deliveryDistance === d.id ? 'border-orange-400 bg-white text-orange-600' : 'border-gray-200 bg-white text-gray-500'
+                          }`}
+                        >
+                          {d.label}<br />+{fmt(d.price)}
+                        </button>
+                      ))}
+                    </div>
+                    <a
+                      href={buildLocationLink()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 bg-orange-500 active:bg-orange-600 text-white px-4 py-2.5 rounded-full text-xs sm:text-sm font-medium transition-colors touch-manipulation w-full"
+                    >
+                      <Navigation className="w-3.5 h-3.5" /> Enviar pedido y ubicación por WhatsApp
+                    </a>
+                    <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+                      Se abrirá WhatsApp con el número 8711-4772 y el detalle de tu pedido ya escrito. Ahí adjunta tu ubicación (📎 → Ubicación) para que el repartidor sepa qué llevar y a dónde.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -214,7 +388,13 @@ export function OrderForm() {
           Enviar pedido por WhatsApp
         </a>
         {!canOrder && (
-          <p className="text-sm text-gray-400 mt-3">Agrega al menos un producto para continuar</p>
+          <p className="text-sm text-gray-400 mt-3">
+            {customerName.trim() === ''
+              ? 'Ingresa tu nombre para continuar'
+              : zone === ''
+              ? 'Selecciona tu zona de entrega para continuar'
+              : 'Agrega al menos un producto para continuar'}
+          </p>
         )}
       </div>
     </div>
